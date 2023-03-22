@@ -1,77 +1,98 @@
-from ovos_solver_openai_persona import OpenAIPersonaSolver
-from ovos_solver_openai_persona.prompts import OpenAIPersonaPromptSolver
-from ovos_utils import classproperty
-from ovos_utils.log import LOG
-from ovos_utils.process_utils import RuntimeRequirements
-from ovos_workshop.skills.fallback import FallbackSkill
-
+import openai as ai
+from mycroft import FallbackSkill, intent_file_handler
 
 class ChatGPTSkill(FallbackSkill):
 
-    @classproperty
-    def runtime_requirements(self):
-        return RuntimeRequirements(internet_before_load=True,
-                                   network_before_load=True,
-                                   gui_before_load=False,
-                                   requires_internet=True,
-                                   requires_network=True,
-                                   requires_gui=False,
-                                   no_internet_fallback=False,
-                                   no_network_fallback=False,
-                                   no_gui_fallback=True)
-
-    def __init__(self):
-        super().__init__("ChatGPT")
+    def __init__(self, name="ChatGPT", bus=None, use_settings=True):
+        super().__init__(name, bus, use_settings)
+        self._chat = None
+        self.max_utts = 15  # memory size TODO from skill settings
+        self.qa_pairs = []  # tuple of q+a
+        self.messages = []
         self.current_q = None
         self.current_a = None
+        self.messages = self.initial_prompt
 
     def initialize(self):
-        chat_engines = ["gpt-3.5-turbo"]
-        text_completions = ["ada", "babbage", "curie", "davinci",
-                            "text-davinci-002", "text-davinci-003"]
-        code_completions = ["code-cushman-001", "code-davinci-002"]
-        engine = self.settings.get("model", "gpt-3.5-turbo")
-        if engine in chat_engines:
-            self._chat = OpenAIPersonaSolver(config=self.settings)
-        elif engine in text_completions:  # davinci/ada ...
-            self._chat = OpenAIPersonaPromptSolver(config=self.settings)
-        else:
-            LOG.warning(f"valid models: {chat_engines + text_completions}")
-            raise ValueError(f"invalid OpenAI model: {engine}")
         self.add_event("speak", self.handle_speak)
         self.add_event("recognizer_loop:utterance", self.handle_utterance)
         self.register_fallback(self.ask_chatgpt, 85)
+        
+        
+    @intent_file_handler('ask.chatgpt.intent')
+    def handle_chatgpt(self, message):
+        self.ask_chatgpt(message)
 
     def handle_utterance(self, message):
         utt = message.data.get("utterances")[0]
-        if self.current_q and self.current_a:
-            self._chat.qa_pairs.append((self.current_q, utt))
         self.current_q = utt
         self.current_a = None
+        
         # TODO: imperfect, subject to race conditions between bus messages
         # use session_id/ident to track all matches
 
     def handle_speak(self, message):
         utt = message.data.get("utterance")
+
         if not self.current_q:
             # TODO - use session_id/ident to track all matches
             # append to previous question if multi-speak answer
             return
-        if self.current_a:
-            self.current_a += ". " + utt
-        else:
-            self.current_a = utt
+        if utt and self.memory:
+            self.qa_pairs.append((self.current_q, utt))
+            self.messages.append({"role": "user", "content": self.current_q})
+            self.messages.append({"role": "system", "content": utt})
+        self.current_q = None
+        self.current_a = None
+
+    @property
+    def memory(self):
+        return self.settings.get("memory", True)
+
+    @property
+    def engine(self):
+        return self.settings.get("engine", "davinci")
+
+    @property
+    def initial_prompt(self):
+        default_prompt = "The assistant is helpful, creative, clever, and very friendly, remembers conversations"
+        content = self.settings.get("initial_prompt", default_prompt)
+        return [{"role": "system", "content": content}]
+
+    @property
+    def chatgpt(self):
+        # this is a property to allow lazy init
+        # the key may be set after skill is loaded
+        key = self.settings.get("key")
+        if not key:
+            raise ValueError("OpenAI api key not set in skill settings.json")
+        if not self._chat:
+            ai.api_key = key
+            self._chat = ai.ChatCompletion()
+        return self._chat
+
+    @property
+    def chat_history(self):
+        messages = self.initial_prompt + self.messages[-self.max_utts:]
+        return messages
+
+    def get_prompt(self, utt):
+        prompt = self.chat_history
+        return prompt
 
     def ask_chatgpt(self, message):
-        self.current_a = None
         utterance = message.data['utterance']
-        answer = self._chat.get_spoken_answer(utterance)
-        if not answer:
-            return False
-        self.current_q = None
-        self.speak(answer)
+        prompt = self.get_prompt(utterance)
+        response = self.chatgpt.create(
+            model="gpt-3.5-turbo", 
+            messages=prompt+[{"role": "user", "content": utterance}]
+        )
+        message = response.choices[0]['message']
+        if self.memory:
+            self.messages.append(message)
+        self.speak(message['content'])
         return True
-
 
 def create_skill():
     return ChatGPTSkill()
+

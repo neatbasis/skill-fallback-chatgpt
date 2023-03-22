@@ -1,0 +1,6 @@
+ask chatgpt {utterance}
+ask openai {utterance}
+ask assistant {utterance}
+tell chatgpt {utterance}
+tell openai {utterance}
+tell assistant {utterance}

@@ -1,0 +1,22 @@
+
+skillMetadata:
+  sections:
+    - name: OpenAI API-key
+      fields:
+        - name: key
+          type: text
+          label: API-key
+          value: ""
+          placeholder: api key here
+    - name: Settings
+      fields:
+        - type: label
+          label: Customize behavior
+        - name: initial_prompt
+          type: text
+          label: Initial Prompt
+          value: "The assistant is helpful, creative, clever, and very friendly, remembers conversations."
+        - name: engine
+          type: text
+          label: ChatGPT Model
+          value: "gpt-3.5-turbo"

@@ -1,6 +1,6 @@
 # ChatGPT Persona Fallback Skill
 
-When in doubt, ask chatgpt, powered by [OVOS Persona](https://github.com/OpenVoiceOS/ovos-solver-plugin-openai-persona)
+When in doubt, ask chatgpt
 
 You need to configure an api_key, get it at https://beta.openai.com/account/api-keys
 
@@ -24,9 +24,9 @@ Under skill settings you can tweak some parameters for chatGPT
 
 - `key` - your api_key to access OpenAI
 - `persona` - can be used to create a "persona", give a personality to chatGPT
-- `model` - LLM model to use, valid options `"gpt-3.5-turbo", "ada", "babbage", "curie", "text-davinci-002", "text-davinci-003"`
+- `engine` - LLM model to use, valid options `"gpt-3.5-turbo", "ada", "babbage", "curie", "text-davinci-002", "text-davinci-003"`
 
-The default persona is `helpful, creative, clever, and very friendly.`
+The default persona is `The assistant is helpful, creative, clever, and very friendly, remembers conversations.`
 
 
 ## Examples 

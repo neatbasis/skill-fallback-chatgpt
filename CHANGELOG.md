@@ -1,5 +1,7 @@
 # Changelog
 
+## Redone by Sebastian Mäki to work on Mycroft.
+
 ## [Unreleased](https://github.com/OpenVoiceOS/skill-ovos-fallback-chatgpt/tree/HEAD)
 
 [Full Changelog](https://github.com/OpenVoiceOS/skill-ovos-fallback-chatgpt/compare/V0.0.2a1...HEAD)
